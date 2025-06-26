@@ -1,3 +1,7 @@
 streamlit
 ibm-watsonx-ai
 fpdf
+gTTS
+streamlit-audiorec
+speechrecognition
+pydub
