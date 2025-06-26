@@ -11,6 +11,7 @@ import re
 import smtplib
 from email.message import EmailMessage
 from email_validator import validate_email, EmailNotValidError
+from datetime import datetime, timedelta
 
 # --- Streamlit Page Settings ---
 st.set_page_config(page_title="🧠 AI Medical Chatbot", layout="centered")
@@ -34,7 +35,7 @@ parameters = {
 
 # --- Function to Generate Medical Guidance ---
 def get_medical_response(symptom):
-    prompt = f"""A patient says: \"{symptom}\".
+    prompt = f'''A patient says: "{symptom}".
 
 Based on this, provide:
 1. Medical department to consult.
@@ -45,7 +46,7 @@ Based on this, provide:
 Also mention a confidence score between 85% to 100%.
 
 Format clearly using bullet points.
-"""
+'''
     return model.generate_text(prompt=prompt, params=parameters)
 
 # --- Clean text for PDF ---
@@ -81,10 +82,15 @@ def send_email_with_pdf(receiver_email, pdf_path):
     except Exception as e:
         return str(e)
 
+# --- Upload Medical Image ---
+st.markdown("### 🖼️ Upload Medical Image (optional)")
+image_file = st.file_uploader("Upload an X-ray, MRI, or other medical image:", type=["png", "jpg", "jpeg"])
+if image_file:
+    st.image(image_file, caption="Uploaded Image", use_column_width=True)
+
 # --- User Input ---
 query = st.text_input("🔍 Enter Symptom or Disease:")
 
-# --- Run Only if Query is Given ---
 if query:
     with st.spinner("Analyzing..."):
         result = get_medical_response(query)
@@ -104,7 +110,6 @@ if query:
         pdf_path = "medical_report.pdf"
         pdf.output(pdf_path)
 
-        # --- Download PDF Button ---
         st.download_button("📄 Download PDF Report", data=open(pdf_path, "rb"), file_name="medical_report.pdf", mime="application/pdf")
 
         # --- QR Code for Result ---
@@ -126,6 +131,34 @@ if query:
                 except EmailNotValidError as e:
                     st.error(f"Invalid Email: {e}")
 
-        # --- Footer Disclaimer ---
-        st.markdown("---")
-        st.markdown("*Disclaimer: This is AI-generated guidance and should not replace consultation with a licensed healthcare provider.*")
+        # --- Feedback System ---
+        st.markdown("### 🙋 Was this guidance helpful?")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("👍 Yes"):
+                st.success("Thank you for your feedback!")
+        with col2:
+            if st.button("👎 No"):
+                st.warning("We'll keep improving. Thanks!")
+
+        # --- Reminder & Appointment Suggestion ---
+        st.markdown("### 📅 Want to schedule a doctor visit?")
+        appointment_time = st.date_input("Choose an appointment date:", datetime.now() + timedelta(days=1))
+        if st.button("📤 Email Appointment Reminder"):
+            if email_input:
+                msg = EmailMessage()
+                msg['Subject'] = 'Doctor Appointment Reminder'
+                msg['From'] = st.secrets["sender_email"]
+                msg['To'] = email_input
+                msg.set_content(f"Your doctor appointment is scheduled for {appointment_time.strftime('%Y-%m-%d')}. Kindly keep a note of it.")
+                try:
+                    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                        smtp.login(st.secrets["sender_email"], st.secrets["sender_password"])
+                        smtp.send_message(msg)
+                    st.success("📧 Reminder email sent!")
+                except Exception as e:
+                    st.error(f"Error sending reminder: {e}")
+
+# --- Footer Disclaimer ---
+st.markdown("---")
+st.markdown("*Disclaimer: This is AI-generated guidance and should not replace consultation with a licensed healthcare provider.*")
