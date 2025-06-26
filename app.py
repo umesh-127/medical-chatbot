@@ -6,24 +6,14 @@ from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 # Streamlit UI
 st.set_page_config(page_title="🧠 Medical Chatbot", layout="centered")
 st.title("🧠 AI Medical Chatbot")
-st.write("Enter a symptom or disease to get detailed medical guidance.")
+st.write("Type your symptom or disease to get medical department, causes, symptoms & precautions.")
 
-import streamlit as st
-from ibm_watsonx_ai import Credentials
-from ibm_watsonx_ai.foundation_models import Model
-from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
-
-# ✅ Get credentials from Streamlit secrets
+# Load credentials from Streamlit secrets
 api_key = st.secrets["api_key"]
 region = st.secrets["region"]
 project_id = st.secrets["project_id"]
 
-# 🔐 Connect to IBM WatsonX
-creds = Credentials(api_key=api_key, url=f"https://{region}.ml.cloud.ibm.com")
-model = Model(model_id="ibm/granite-3-3-8b-instruct", credentials=creds, project_id=project_id)
-
-
-# IBM watsonx connection
+# IBM watsonx.ai model setup
 creds = Credentials(api_key=api_key, url=f"https://{region}.ml.cloud.ibm.com")
 model = Model(model_id="ibm/granite-3-3-8b-instruct", credentials=creds, project_id=project_id)
 
@@ -33,9 +23,9 @@ parameters = {
     GenParams.MAX_NEW_TOKENS: 300
 }
 
-# Define response function
-def recommend_info(user_input):
-    prompt = f"""A patient says: "{user_input}"
+# Function to generate medical response
+def get_medical_response(symptom):
+    prompt = f"""A patient says: "{symptom}"
 
 Based on this, provide:
 1. Medical department to consult.
@@ -44,16 +34,18 @@ Based on this, provide:
 4. Safe precautions or home remedies.
 5. Add a note advising the user to consult a doctor.
 
-Format response as clear bullet points.
+Format the response clearly as bullet points.
 """
     response = model.generate_text(prompt=prompt, params=parameters)
     return response
 
-# Get user input
-query = st.text_input("Enter Symptom or Disease:")
+# Input box
+query = st.text_input("🔍 Enter Symptom or Disease:")
 
+# Show result
 if query:
     with st.spinner("Analyzing..."):
-        answer = recommend_info(query)
+        result = get_medical_response(query)
         st.markdown("### 🧾 Medical Guidance")
-        st.markdown(answer)
+        st.markdown(result)
+
