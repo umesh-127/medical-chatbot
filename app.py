@@ -2,7 +2,8 @@ import streamlit as st
 from ibm_watsonx_ai import Credentials
 from ibm_watsonx_ai.foundation_models import Model
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
-from googletrans import Translator
+from deep_translator import GoogleTranslator
+
 from fpdf import FPDF
 from datetime import datetime
 
@@ -31,9 +32,8 @@ emergency_keywords = ["chest pain", "shortness of breath", "severe bleeding", "h
 
 # 🌐 Translator
 def translate_to_english(text):
-    translator = Translator()
-    result = translator.translate(text, dest='en')
-    return result.text
+    return GoogleTranslator(source='auto', target='en').translate(text)
+
 
 # 🚨 Emergency Detection
 def detect_emergency(text):
