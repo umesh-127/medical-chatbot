@@ -6,40 +6,43 @@ from googletrans import Translator
 from fpdf import FPDF
 from datetime import datetime
 
-# ------------------ Streamlit Config ------------------ #
-st.set_page_config(page_title="🧠 Medical Chatbot", layout="centered")
+# 🧠 Streamlit Config
+st.set_page_config(page_title="🧠 AI Medical Chatbot", layout="centered")
 st.title("🧠 AI Medical Chatbot")
 st.write("Type your symptom or disease to get medical department, causes, symptoms & precautions.")
 
-# ------------------ Load Secrets ------------------ #
+# 🔐 Load Secrets
 api_key = st.secrets["api_key"]
 region = st.secrets["region"]
 project_id = st.secrets["project_id"]
 
-# ------------------ IBM Model Setup ------------------ #
+# 🧠 IBM Watsonx Model Setup
 creds = Credentials(api_key=api_key, url=f"https://{region}.ml.cloud.ibm.com")
 model = Model(model_id="ibm/granite-3-3-8b-instruct", credentials=creds, project_id=project_id)
 
+# ⚙️ Model Parameters
 parameters = {
     GenParams.DECODING_METHOD: "greedy",
     GenParams.MAX_NEW_TOKENS: 300
 }
 
-# ------------------ Keywords for Emergency ------------------ #
+# 🚨 Emergency Keywords
 emergency_keywords = ["chest pain", "shortness of breath", "severe bleeding", "heart attack", "unconscious", "stroke"]
 
-# ------------------ Functions ------------------ #
+# 🌐 Translator
+def translate_to_english(text):
+    translator = Translator()
+    result = translator.translate(text, dest='en')
+    return result.text
+
+# 🚨 Emergency Detection
 def detect_emergency(text):
     for keyword in emergency_keywords:
         if keyword.lower() in text.lower():
             return True
     return False
 
-def translate_to_english(text):
-    translator = Translator()
-    result = translator.translate(text, dest='en')
-    return result.text
-
+# 📄 PDF Report Generator
 def generate_pdf(symptom, response):
     pdf = FPDF()
     pdf.add_page()
@@ -54,6 +57,7 @@ def generate_pdf(symptom, response):
     pdf.output(filename)
     return filename
 
+# 💬 Prompt to Watsonx
 def get_medical_response(symptom):
     prompt = f"""A patient says: "{symptom}"
 
@@ -69,7 +73,7 @@ Format the response clearly as bullet points.
 """
     return model.generate_text(prompt=prompt, params=parameters)
 
-# ------------------ Input UI ------------------ #
+# 🔍 Input UI
 query = st.text_input("🔍 Enter Symptom or Disease (any language):")
 
 if query:
