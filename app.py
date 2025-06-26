@@ -41,17 +41,21 @@ Format the response clearly as bullet points.
     response = model.generate_text(prompt=prompt, params=parameters)
     return response
 
-# Function to generate PDF
+# Function to generate PDF (safe from emoji errors)
 def generate_pdf(symptom, response):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="🧠 AI Medical Chatbot Report", ln=True, align='C')
+    pdf.cell(200, 10, txt="AI Medical Chatbot Report", ln=True, align='C')
     pdf.cell(200, 10, txt=f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align='C')
     pdf.ln(10)
     pdf.multi_cell(0, 10, f"User Query: {symptom}")
     pdf.ln(5)
-    pdf.multi_cell(0, 10, f"Response:\n{response}")
+
+    # Remove emojis and unsupported characters
+    clean_response = response.encode('latin1', 'ignore').decode('latin1')
+    pdf.multi_cell(0, 10, f"Response:\n{clean_response}")
+
     filename = "medical_report.pdf"
     pdf.output(filename)
     return filename
@@ -59,15 +63,14 @@ def generate_pdf(symptom, response):
 # Input box
 query = st.text_input("🔍 Enter Symptom or Disease:")
 
-# Show result and PDF download
+# Show result and allow PDF download
 if query:
     with st.spinner("Analyzing..."):
         result = get_medical_response(query)
         st.markdown("### 🧾 Medical Guidance")
         st.markdown(result)
 
+        # Generate and offer PDF download
         pdf_file = generate_pdf(query, result)
         with open(pdf_file, "rb") as f:
             st.download_button("📄 Download Report (PDF)", data=f, file_name=pdf_file, mime="application/pdf")
-
-
