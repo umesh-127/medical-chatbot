@@ -122,17 +122,18 @@ if query:
         st.audio("response.mp3")
 
         # --- PDF Generation ---
+        cleaned_result = clean_text_for_pdf(result)
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
-        pdf.multi_cell(0, 10, f"AI Medical Chatbot Report\n\nSymptom/Disease: {query}\n\nMedical Guidance:\n{clean_text_for_pdf(result)}")
+        pdf.multi_cell(0, 10, f"AI Medical Chatbot Report\n\nSymptom/Disease: {query}\n\nMedical Guidance:\n{cleaned_result}")
         pdf_path = "medical_report.pdf"
         pdf.output(pdf_path)
 
         st.download_button("📄 Download PDF Report", data=open(pdf_path, "rb"), file_name="medical_report.pdf", mime="application/pdf")
 
         # --- QR Code for Result ---
-        qr_path = generate_qr(query + "\n\n" + clean_text_for_pdf(result))
+        qr_path = generate_qr(query + "\n\n" + cleaned_result)
         st.image(qr_path, caption="📷 Scan QR to View Summary")
 
         # --- Email Feature ---
@@ -151,7 +152,7 @@ if query:
                     st.error(f"Invalid Email: {e}")
 
         # --- Feedback System ---
-        st.markdown("### 🙋 Was this guidance helpful?")
+        st.markdown("### 😋 Was this guidance helpful?")
         col1, col2 = st.columns(2)
         with col1:
             if st.button("👍 Yes"):
@@ -163,7 +164,7 @@ if query:
                 send_feedback_email("👎 Not helpful")
 
         # --- Reminder & Appointment Suggestion ---
-        st.markdown("### 📅 Want to schedule a doctor visit?")
+        st.markdown("### 🗓️ Want to schedule a doctor visit?")
         appointment_time = st.date_input("Choose an appointment date:", datetime.now() + timedelta(days=1))
         if st.button("📤 Email Appointment Reminder"):
             if email_input:
