@@ -2,6 +2,8 @@ import streamlit as st
 from ibm_watsonx_ai import Credentials
 from ibm_watsonx_ai.foundation_models import Model
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
+from fpdf import FPDF
+from datetime import datetime
 
 # Streamlit UI
 st.set_page_config(page_title="🧠 Medical Chatbot", layout="centered")
@@ -39,13 +41,33 @@ Format the response clearly as bullet points.
     response = model.generate_text(prompt=prompt, params=parameters)
     return response
 
+# Function to generate PDF
+def generate_pdf(symptom, response):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="🧠 AI Medical Chatbot Report", ln=True, align='C')
+    pdf.cell(200, 10, txt=f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align='C')
+    pdf.ln(10)
+    pdf.multi_cell(0, 10, f"User Query: {symptom}")
+    pdf.ln(5)
+    pdf.multi_cell(0, 10, f"Response:\n{response}")
+    filename = "medical_report.pdf"
+    pdf.output(filename)
+    return filename
+
 # Input box
 query = st.text_input("🔍 Enter Symptom or Disease:")
 
-# Show result
+# Show result and PDF download
 if query:
     with st.spinner("Analyzing..."):
         result = get_medical_response(query)
         st.markdown("### 🧾 Medical Guidance")
         st.markdown(result)
+
+        pdf_file = generate_pdf(query, result)
+        with open(pdf_file, "rb") as f:
+            st.download_button("📄 Download Report (PDF)", data=f, file_name=pdf_file, mime="application/pdf")
+
 
