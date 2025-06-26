@@ -2,3 +2,6 @@ streamlit
 ibm-watsonx-ai
 gTTS
 fpdf
+qrcode
+Pillow
+email-validator
