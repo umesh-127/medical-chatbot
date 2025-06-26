@@ -5,9 +5,10 @@ from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 from gtts import gTTS
 from fpdf import FPDF
 import os
+import re
 
 # Streamlit UI setup
-st.set_page_config(page_title="🧠 AI Medical Chatbot", layout="centered")
+st.set_page_config(page_title="AI Medical Chatbot", layout="centered")
 st.title("🧠 AI Medical Chatbot")
 st.write("Type your symptom or disease to get medical department, causes, symptoms & precautions.")
 
@@ -26,7 +27,7 @@ parameters = {
     GenParams.MAX_NEW_TOKENS: 300
 }
 
-# Medical Response Generator
+# Function to generate response
 def get_medical_response(symptom):
     prompt = f"""A patient says: \"{symptom}\"
 
@@ -39,31 +40,33 @@ Based on this, provide:
 
 Format the response clearly as bullet points.
 """
-    response = model.generate_text(prompt=prompt, params=parameters)
-    return response
+    return model.generate_text(prompt=prompt, params=parameters)
 
-# User Input
+# Function to clean text for PDF (remove emojis and non-latin characters)
+def clean_text_for_pdf(text):
+    return re.sub(r'[^\x00-\x7F]+', '', text)
+
+# User input
 query = st.text_input("🔍 Enter Symptom or Disease:")
 
-# When input is provided
 if query:
-    with st.spinner("Generating medical guidance..."):
+    with st.spinner("Analyzing..."):
         result = get_medical_response(query)
-
         st.markdown("### 🧾 Medical Guidance")
         st.markdown(result)
 
-        # Text-to-speech
+        # Voice output
         tts = gTTS(result, lang="en")
         tts.save("response.mp3")
         st.audio("response.mp3")
 
-        # PDF Download Button
+        # Download as PDF
         if st.button("📄 Download Report as PDF"):
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", size=12)
-            pdf.multi_cell(0, 10, f"🧠 AI Medical Chatbot Report\n\nSymptom/Disease: {query}\n\nMedical Guidance:\n{result}")
+            clean_result = clean_text_for_pdf(result)
+            pdf.multi_cell(0, 10, f"AI Medical Chatbot Report\n\nSymptom/Disease: {query}\n\nMedical Guidance:\n{clean_result}")
             pdf.output("medical_report.pdf")
 
             with open("medical_report.pdf", "rb") as file:
