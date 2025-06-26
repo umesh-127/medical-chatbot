@@ -4,11 +4,18 @@ from ibm_watsonx_ai.foundation_models import Model
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 from fpdf import FPDF
 from datetime import datetime
+from gtts import gTTS
+import os
+
+import streamlit.components.v1 as components
+from streamlit_audiorec import st_audiorec
+import speech_recognition as sr
+from pydub import AudioSegment
 
 # Streamlit UI
 st.set_page_config(page_title="🧠 Medical Chatbot", layout="centered")
 st.title("🧠 AI Medical Chatbot")
-st.write("Type your symptom or disease to get medical department, causes, symptoms & precautions.")
+st.write("Speak or type your symptom to get medical advice (department, causes, symptoms & precautions).")
 
 # Load credentials from Streamlit secrets
 api_key = st.secrets["api_key"]
@@ -19,13 +26,12 @@ project_id = st.secrets["project_id"]
 creds = Credentials(api_key=api_key, url=f"https://{region}.ml.cloud.ibm.com")
 model = Model(model_id="ibm/granite-3-3-8b-instruct", credentials=creds, project_id=project_id)
 
-# Model parameters
 parameters = {
     GenParams.DECODING_METHOD: "greedy",
     GenParams.MAX_NEW_TOKENS: 300
 }
 
-# Function to generate medical response
+# Generate AI response
 def get_medical_response(symptom):
     prompt = f"""A patient says: "{symptom}"
 
@@ -38,10 +44,9 @@ Based on this, provide:
 
 Format the response clearly as bullet points.
 """
-    response = model.generate_text(prompt=prompt, params=parameters)
-    return response
+    return model.generate_text(prompt=prompt, params=parameters)
 
-# Function to generate PDF (safe from emoji errors)
+# Generate PDF
 def generate_pdf(symptom, response):
     pdf = FPDF()
     pdf.add_page()
@@ -51,26 +56,51 @@ def generate_pdf(symptom, response):
     pdf.ln(10)
     pdf.multi_cell(0, 10, f"User Query: {symptom}")
     pdf.ln(5)
-
-    # Remove emojis and unsupported characters
     clean_response = response.encode('latin1', 'ignore').decode('latin1')
     pdf.multi_cell(0, 10, f"Response:\n{clean_response}")
-
     filename = "medical_report.pdf"
     pdf.output(filename)
     return filename
 
-# Input box
+# Text input
 query = st.text_input("🔍 Enter Symptom or Disease:")
 
-# Show result and allow PDF download
+# Voice input
+st.markdown("### 🎙️ Or record your voice below:")
+audio_data = st_audiorec()
+
+if audio_data is not None:
+    # Save voice as wav
+    with open("recorded.wav", "wb") as f:
+        f.write(audio_data)
+
+    # Convert to recognisable format
+    audio = AudioSegment.from_file("recorded.wav")
+    audio.export("converted.wav", format="wav")
+
+    r = sr.Recognizer()
+    with sr.AudioFile("converted.wav") as source:
+        audio_text = r.listen(source)
+        try:
+            query = r.recognize_google(audio_text)
+            st.success(f"Recognized Speech: {query}")
+        except:
+            st.error("Sorry, could not recognize the speech.")
+
+# Generate and show result
 if query:
     with st.spinner("Analyzing..."):
         result = get_medical_response(query)
         st.markdown("### 🧾 Medical Guidance")
         st.markdown(result)
 
-        # Generate and offer PDF download
+        # Generate voice output
+        tts = gTTS(result)
+        tts.save("response.mp3")
+        audio_file = open("response.mp3", "rb")
+        st.audio(audio_file.read(), format="audio/mp3")
+
+        # PDF download
         pdf_file = generate_pdf(query, result)
         with open(pdf_file, "rb") as f:
             st.download_button("📄 Download Report (PDF)", data=f, file_name=pdf_file, mime="application/pdf")
