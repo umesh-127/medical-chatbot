@@ -3,3 +3,4 @@ ibm-watsonx-ai
 gTTS
 SpeechRecognition
 PyAudio
+fpdf
