@@ -82,6 +82,25 @@ def send_email_with_pdf(receiver_email, pdf_path):
     except Exception as e:
         return str(e)
 
+# --- Send Email Reminder ---
+def send_reminder_email(email, date):
+    sender_email = st.secrets["sender_email"]
+    sender_password = st.secrets["sender_password"]
+
+    msg = EmailMessage()
+    msg['Subject'] = 'Doctor Appointment Reminder'
+    msg['From'] = sender_email
+    msg['To'] = email
+    msg.set_content(f"This is a reminder for your medical appointment on {date.strftime('%Y-%m-%d')}. Please arrive on time.")
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(sender_email, sender_password)
+            smtp.send_message(msg)
+        return True
+    except Exception as e:
+        return str(e)
+
 # --- Upload Medical Image ---
 st.markdown("### 🖼️ Upload Medical Image (optional)")
 image_file = st.file_uploader("Upload an X-ray, MRI, or other medical image:", type=["png", "jpg", "jpeg"])
@@ -94,7 +113,7 @@ query = st.text_input("🔍 Enter Symptom or Disease:")
 if query:
     with st.spinner("Analyzing..."):
         result = get_medical_response(query)
-        st.markdown("### 🧾 Medical Guidance")
+        st.markdown("### 🗞 Medical Guidance")
         st.markdown(result)
 
         # --- Voice Output ---
@@ -141,23 +160,19 @@ if query:
             if st.button("👎 No"):
                 st.warning("We'll keep improving. Thanks!")
 
-        # --- Reminder & Appointment Suggestion ---
+        # --- Appointment Reminder ---
         st.markdown("### 📅 Want to schedule a doctor visit?")
-        appointment_time = st.date_input("Choose an appointment date:", datetime.now() + timedelta(days=1))
+        appointment_date = st.date_input("Choose an appointment date:", datetime.now() + timedelta(days=1))
         if st.button("📤 Email Appointment Reminder"):
             if email_input:
-                msg = EmailMessage()
-                msg['Subject'] = 'Doctor Appointment Reminder'
-                msg['From'] = st.secrets["sender_email"]
-                msg['To'] = email_input
-                msg.set_content(f"Your doctor appointment is scheduled for {appointment_time.strftime('%Y-%m-%d')}. Kindly keep a note of it.")
                 try:
-                    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                        smtp.login(st.secrets["sender_email"], st.secrets["sender_password"])
-                        smtp.send_message(msg)
-                    st.success("📧 Reminder email sent!")
+                    status = send_reminder_email(email_input, appointment_date)
+                    if status is True:
+                        st.success("📧 Reminder email sent!")
+                    else:
+                        st.error(f"Error sending reminder: {status}")
                 except Exception as e:
-                    st.error(f"Error sending reminder: {e}")
+                    st.error(f"Invalid Email or error: {e}")
 
 # --- Footer Disclaimer ---
 st.markdown("---")
