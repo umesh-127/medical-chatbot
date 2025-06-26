@@ -2,34 +2,33 @@ import streamlit as st
 from ibm_watsonx_ai import Credentials
 from ibm_watsonx_ai.foundation_models import Model
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
-from fpdf import FPDF
-from datetime import datetime
 from gtts import gTTS
+import speech_recognition as sr
 import os
 
 # Streamlit UI
 st.set_page_config(page_title="🧠 Medical Chatbot", layout="centered")
 st.title("🧠 AI Medical Chatbot")
-st.write("Type your symptom or disease to get medical department, causes, symptoms & precautions.")
+st.write("Speak or type your symptom/disease to get medical advice.")
 
-# Load credentials from secrets
+# Load credentials from Streamlit secrets
 api_key = st.secrets["api_key"]
 region = st.secrets["region"]
 project_id = st.secrets["project_id"]
 
-# IBM Watsonx setup
+# IBM watsonx.ai model setup
 creds = Credentials(api_key=api_key, url=f"https://{region}.ml.cloud.ibm.com")
 model = Model(model_id="ibm/granite-3-3-8b-instruct", credentials=creds, project_id=project_id)
 
-# Generation params
+# Model parameters
 parameters = {
     GenParams.DECODING_METHOD: "greedy",
     GenParams.MAX_NEW_TOKENS: 300
 }
 
-# Get AI response
+# Function to generate medical response
 def get_medical_response(symptom):
-    prompt = f"""A patient says: "{symptom}"
+    prompt = f"""A patient says: \"{symptom}\"
 
 Based on this, provide:
 1. Medical department to consult.
@@ -40,40 +39,40 @@ Based on this, provide:
 
 Format the response clearly as bullet points.
 """
-    return model.generate_text(prompt=prompt, params=parameters)
+    response = model.generate_text(prompt=prompt, params=parameters)
+    return response
 
-# PDF export
-def generate_pdf(symptom, response):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="AI Medical Chatbot Report", ln=True, align='C')
-    pdf.cell(200, 10, txt=f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align='C')
-    pdf.ln(10)
-    pdf.multi_cell(0, 10, f"User Query: {symptom}")
-    pdf.ln(5)
-    clean_response = response.encode('latin1', 'ignore').decode('latin1')
-    pdf.multi_cell(0, 10, f"Response:\n{clean_response}")
-    filename = "medical_report.pdf"
-    pdf.output(filename)
-    return filename
+# Voice recognition
+recognizer = sr.Recognizer()
+voice_input = st.button("🎙️ Speak your symptom")
+query = ""
 
-# Input
-query = st.text_input("🔍 Enter Symptom or Disease:")
+if voice_input:
+    with sr.Microphone() as source:
+        st.info("Listening...")
+        audio = recognizer.listen(source, timeout=5, phrase_time_limit=8)
+        try:
+            query = recognizer.recognize_google(audio)
+            st.success(f"You said: {query}")
+        except sr.UnknownValueError:
+            st.error("Could not understand audio.")
+        except sr.RequestError:
+            st.error("Speech recognition service error.")
 
+# Or manual text input
+query = st.text_input("✍️ Or type here:", value=query)
+
+# Language selection for output
+lang_choice = st.selectbox("🌐 Select language for audio response:", ["en", "hi", "te"], format_func=lambda x: {"en": "English", "hi": "Hindi", "te": "Telugu"}[x])
+
+# Show result
 if query:
     with st.spinner("Analyzing..."):
         result = get_medical_response(query)
         st.markdown("### 🧾 Medical Guidance")
         st.markdown(result)
 
-        # Voice output
-        tts = gTTS(result)
+        tts = gTTS(result, lang=lang_choice)
         tts.save("response.mp3")
-        with open("response.mp3", "rb") as audio_file:
-            st.audio(audio_file.read(), format="audio/mp3")
-
-        # PDF download
-        pdf_file = generate_pdf(query, result)
-        with open(pdf_file, "rb") as f:
-            st.download_button("📄 Download Report (PDF)", data=f, file_name=pdf_file, mime="application/pdf")
+        audio_file = open("response.mp3", "rb")
+        st.audio(audio_file.read(), format="audio/mp3")
